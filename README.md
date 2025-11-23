@@ -111,7 +111,7 @@ To start the server:
 ```bash
 mvn spring-boot:run
 
-## Technologies Used
+ Technologies Used
 
 Java 17
 
@@ -153,3 +153,15 @@ Neo Gonsalves
 LinkedIn: https://www.linkedin.com/in/neo-gonsalves-b86a4b283/
 
 GitHub: https://github.com/NeoGonsalves
+
+“Vendor SDK binaries removed due to licensing restrictions.” (Already done)
+
+This makes your repo:
+
+Professional
+
+Legally safe
+
+Usable
+
+Recruiter-friendly
