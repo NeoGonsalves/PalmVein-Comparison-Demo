@@ -1,6 +1,14 @@
 # Palm Vein Comparison – 1:1 & 1:N Demo  
 ### BioPay Internal Architecture & SDK Integration (Public-Safe Version)
 
+![Java](https://img.shields.io/badge/Java-17-orange)
+![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.0-brightgreen)
+![WebSocket](https://img.shields.io/badge/WebSocket-enabled-blue)
+![Architecture](https://img.shields.io/badge/Architecture-System%20Design-purple)
+![Status](https://img.shields.io/badge/Maintained-Yes-success)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+
 This repository contains the **application-side code**, architecture, and integration logic I worked on while designing and testing components of a palm vein recognition system.  
 
 ⚠ **Important:**  
