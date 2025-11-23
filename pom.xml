@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.example</groupId>
+    <artifactId>javaCamerServer</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>javaCamerServer</name>
+    <description>javaCamerServer</description>
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <spring-boot.version>2.6.13</spring-boot.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.12.1</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+            <version>5.12.1</version>
+        </dependency>
+        <!-- opencv -->
+        <dependency>
+            <groupId>org.openpnp</groupId>
+            <artifactId>opencv</artifactId>
+            <version>4.5.5-1</version>
+        </dependency>
+        <!-- WebSocket支持 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        <!-- MyBatis-Plus 启动器 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-boot-starter</artifactId>
+            <version>3.5.3.1</version> <!-- 兼容 Spring Boot 2.6.x 的最新稳定版 -->
+        </dependency>
+        <!-- MySQL 8.0 驱动 -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version> <!-- 或更高版本 -->
+            <scope>runtime</scope>
+        </dependency>
+        <!-- 可选：Lombok 简化实体类 -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.32</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.24.1</version>
+        </dependency>
+
+    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <!--<resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                &lt;!&ndash; 错误配置会过滤掉HTML文件 &ndash;&gt;
+                <filtering>false</filtering> &lt;!&ndash; 这是问题根源！ &ndash;&gt;
+                <excludes>
+                    <exclude>static/**</exclude> &lt;!&ndash; 必须排除静态目录 &ndash;&gt;
+                </excludes>
+                <includes>
+                    <include>*.dll</include> &lt;!&ndash; 包含所有 DLL &ndash;&gt;
+                    <include>*.so</include> &lt;!&ndash; 包含所有 Linux 库 &ndash;&gt;
+                    <include>*.dylib</include> &lt;!&ndash; 包含所有 Mac 库 &ndash;&gt;
+                    <include>*.yml</include> &lt;!&ndash; 包含所有 Mac 库 &ndash;&gt;
+                    <include>*.properties</include> &lt;!&ndash; 包含所有 Mac 库 &ndash;&gt;
+                    <include>**/*.html</include>
+                    &lt;!&ndash; 其他资源配置 &ndash;&gt;
+                </includes>
+            </resource>
+        </resources>-->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <!-- 仅排除不需要的文件，保留 static 目录 -->
+                </excludes>
+                <includes>
+                    <include>**/*.dll</include>
+                    <include>**/*.so</include>
+                    <include>**/*.dylib</include>
+                    <include>**/*.*</include> <!-- 包含所有文件 -->
+                </includes>
+            </resource>
+
+            <!-- 可选：为原生库添加单独的资源配置 -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>*.dll</include>
+                    <include>*.so</include>
+                    <include>*.dylib</include>
+                </includes>
+                <targetPath>BOOT-INF/classes/</targetPath> <!-- 确保放在正确位置 -->
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.10.1</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.32</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <configuration>
+                    <mainClass>org.example.javacamerserver.JavaCamerServerApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

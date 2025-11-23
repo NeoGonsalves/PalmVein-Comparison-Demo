@@ -1,0 +1,37 @@
+# 应用服务 WEB 访问端口
+server:
+  port: 8188
+
+# 数据库连接池
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver # MySQL 8+ 驱动
+    url: jdbc:mysql://localhost:3310/tdx_palm_comparison?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8
+    username: root
+    password: TDX_face@2012
+    type: com.zaxxer.hikari.HikariDataSource
+    # 可选：显示配置连接池
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+  # 修正：将web配置移到与datasource同级
+  web:
+    resources:
+      static-locations: classpath:/static/, classpath:/public/ # 自定义静态资源目录
+      cache:
+        period: 0 # 禁用缓存
+        chain:
+          cache: false
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 开启 SQL 日志（可选）
+  global-config:
+    db-config:
+      id-type: auto # 主键自增策略

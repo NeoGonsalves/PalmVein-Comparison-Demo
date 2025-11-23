@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Palmprint collection and comparison system</title>
+    <style>
+        /* 保持原有样式不变 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        #videoContainer {
+            width: 480px;
+            height: 640px;
+            border: 2px solid #333;
+            margin-top: 20px;
+            position: relative;
+            margin-left: auto;
+            margin-right: auto;
+            overflow: hidden; /* 添加这个确保内容不溢出 */
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .error {
+            color: red;
+            height: 20px;
+            margin: 10px;
+        }
+        .custom-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50; /* 保持原有颜色 */
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 140px; /* 统一按钮宽度 */
+            box-sizing: border-box; /* 确保宽度包含内边距 */
+        }
+        button:hover {
+            background-color: #45a049; /* 保持原有悬停颜色 */
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        /* 新增弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 300px;
+        }
+        .modal input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        /* 按钮组样式 - 实现两行三列布局 */
+        .button-group {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px; /* 按钮之间的间距 */
+            margin-bottom: 10px; /* 两行之间的间距 */
+        }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div class="el-form-item__content" style="margin-left: 0;">
+        <div class="cms-width el-input">
+            Palmprint collection and comparison
+        </div>
+        <div class="error"></div>
+        <div style="margin-top: 20px" id="videoContainer">
+            <img id="currentFrame" src="" class="custom-image" alt="Live Image" />
+            <canvas id="overlayCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+        </div>
+
+        <!-- 按钮组改为两行三列布局 -->
+        <div class="button-group">
+            <div class="button-row">
+                <button id="connectWs">Open Preview</button>
+                <button id="palmVein">Register palm vein</button>
+                <button id="comparePalmar">Preview interface</button>
+            </div>
+            <div class="button-row">
+                <button id="updatePalmVein">Modification of palmar vein</button>
+                <button id="deletePalmVein">Remove palmar veins</button>
+                <button id="disconnectWs">Close preview</button>
+            </div>
+        </div>
+
+        <div class="status" id="wsStatus">Not connected</div>
+    </div>
+</div>
+
+<!-- 新增弹窗 -->
+<div class="modal" id="palmVeinModal">
+    <div class="modal-content">
+        <h3 id="modalTitle">Enter palm vein ID</h3>
+        <p>Please enter your content (up to 16 characters)</p>
+        <input type="text" id="palmVeinId" maxlength="16" pattern="[A-Za-z0-9]{1,16}">
+        <div class="modal-buttons">
+            <button id="cancelBtn">Cancel</button>
+            <button id="confirmBtn">confirm</button>
+        </div>
+    </div>
+</div>
+
+<script src="./js/jquery-1.12.4.js"></script>
+<script>
+    // 添加canvas相关变量
+    const overlayCanvas = document.getElementById('overlayCanvas');
+    const ctx = overlayCanvas.getContext('2d');
+
+    const videoContainer = document.getElementById('videoContainer');
+    const currentFrame = document.getElementById('currentFrame');
+    const connectWsBtn = document.getElementById('connectWs');
+    const disconnectWsBtn = document.getElementById('disconnectWs');
+    const palmVeinBtn = document.getElementById('palmVein');
+    const updatePalmVeinBtn = document.getElementById('updatePalmVein');
+    const deletePalmVeinBtn = document.getElementById('deletePalmVein');
+    const comparePalmarBtn = document.getElementById('comparePalmar');
+    const errorElement = document.querySelector('.error');
+    const wsStatusElement = document.getElementById('wsStatus');
+    // 新增弹窗相关元素
+    const modal = document.getElementById('palmVeinModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const palmVeinIdInput = document.getElementById('palmVeinId');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const confirmBtn = document.getElementById('confirmBtn');
+    let lastCoordinates = null; // 保存最后接收到的坐标
+    let ws = null;
+    let wsUrl = 'ws://localhost:8188/video';
+    let currentAction = '';
+
+    // 初始化按钮状态
+    disconnectWsBtn.disabled = true;
+    palmVeinBtn.disabled = true;
+    updatePalmVeinBtn.disabled = true;
+    deletePalmVeinBtn.disabled = true;
+    comparePalmarBtn.disabled = true;
+
+    // 连接WebSocket
+    connectWsBtn.addEventListener('click', () => {
+        connectWebSocket();
+    });
+
+    // 断开WebSocket连接
+    disconnectWsBtn.addEventListener('click', () => {
+        if (ws) {
+            ws.close();
+        }
+        clearGreenBox();
+    });
+
+    // 注册掌静脉 - 打开弹窗
+    palmVeinBtn.addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            currentAction = 'register_palm_vein';
+            modalTitle.textContent = 'Enter palm vein ID (registration)';
+            palmVeinIdInput.value = '';
+            modal.style.display = 'flex';
+        }
+    });
+
+    // 修改掌静脉 - 打开弹窗
+    updatePalmVeinBtn.addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            currentAction = 'update_palm_vein';
+            modalTitle.textContent = 'Enter palm vein ID (modify)';
+            palmVeinIdInput.value = '';
+            modal.style.display = 'flex';
+        }
+    });
+
+    // 删除掌静脉 - 打开弹窗
+    deletePalmVeinBtn.addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            currentAction = 'delete_palm_vein';
+            modalTitle.textContent = 'Enter palm vein ID (delete)';
+            palmVeinIdInput.value = '';
+            modal.style.display = 'flex';
+        }
+    });
+
+    // 比对掌静脉
+    comparePalmarBtn.addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ command: 'compare_palm_vein' }));
+            wsStatusElement.textContent = 'Preview interface';
+            errorElement.textContent = 'Preview interface';
+        }
+    });
+
+    // 取消按钮事件
+    cancelBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    // 确认按钮事件
+    confirmBtn.addEventListener('click', () => {
+        const palmId = palmVeinIdInput.value.trim();
+        // 验证输入
+        if (!palmId) {
+            alert('Please enter your palm vein ID');
+            return;
+        }
+        // 验证是否只包含英文和数字
+        // const regex = /^[A-Za-z0-9]+$/;
+        // if (!regex.test(palmId)) {
+        //     alert('掌静脉ID只能包含英文和数字');
+        //     return;
+        // }
+        // 验证长度
+        if (palmId.length > 16) {
+            alert('Palm vein ID can contain up to 16 characters');
+            return;
+        }
+
+        // 根据当前操作类型发送不同指令
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                command: currentAction,
+                palm_vein_id: palmId
+            }));
+            // 显示对应的状态信息
+            wsStatusElement.textContent = `Sent${
+                currentAction === 'register_palm_vein' ? 'register' :
+                    currentAction === 'update_palm_vein' ? 'revise' : 'delete'
+            }Palm vein request，ID: ${palmId}`;
+            modal.style.display = 'none';
+        }
+    });
+
+    // 点击弹窗外部关闭弹窗
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+    // 初始化时设置canvas尺寸
+    window.addEventListener('load', function() {
+        setupCanvas();
+        // 监听窗口大小变化
+        window.addEventListener('resize', setupCanvas);
+    });
+
+    // 限制输入只能是英文和数字
+    palmVeinIdInput.addEventListener('input', (e) => {
+        //e.target.value = e.target.value.replace(/[^A-Za-z0-9]/g, '');
+    });
+
+    function connectWebSocket() {
+        try {
+            errorElement.textContent = '';
+
+            setupCanvas(); // 确保canvas已初始化
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                wsStatusElement.textContent = 'Connected';
+                connectWsBtn.disabled = true;
+                disconnectWsBtn.disabled = false;
+                palmVeinBtn.disabled = false;
+                updatePalmVeinBtn.disabled = false;
+                deletePalmVeinBtn.disabled = false;
+                comparePalmarBtn.disabled = false;
+                console.log('WebSocket connection established');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Received data:', data);
+                    if (data.frame) {
+                        console.log('Received pictures:', data.frame);
+                        currentFrame.src = data.frame;
+                        // 图片加载完成后清除之前的框
+                        currentFrame.onload = function() {
+                            console.log('图片加载完成，自然尺寸:', currentFrame.naturalWidth, 'x', currentFrame.naturalHeight);
+                            clearGreenBox();
+                            setupCanvas(); // 确保canvas尺寸正确
+                        };
+                    }
+                    // 处理坐标数据
+                    if (data.coordinates) {
+                        try {
+                            const coords = JSON.parse(data.coordinates);
+                            console.log('Received coordinates:', coords);
+
+                            // 等待图片加载完成后再绘制
+                            if (currentFrame.complete && currentFrame.naturalWidth > 0) {
+                                drawGreenBox(coords);
+                            } else {
+                                // 如果图片还没加载完，先保存坐标
+                                lastCoordinates = coords;
+                                console.log('图片未加载完成，坐标已保存');
+                            }
+                        } catch (e) {
+                            console.error('解析coordinates失败:', e);
+                        }
+                    }
+                    if (data.success){
+                        wsStatusElement.textContent = data.info;
+                    }
+                    if (data.info) {
+                        errorElement.textContent = data.info;
+                    }
+                } catch (e) {
+                    // 非JSON数据（可能是图片数据）
+                    currentFrame.src = event.data;
+                    wsStatusElement.textContent = 'New image received';
+                    // 新图片加载时清除框
+                    currentFrame.onload = function() {
+                        console.log('二进制图片加载完成');
+                        clearGreenBox();
+                        setupCanvas();
+                    };
+                }
+            };
+
+            ws.onclose = (event) => {
+                wsStatusElement.textContent = `WebSocket disconnected (code: ${event.code})`;
+                connectWsBtn.disabled = false;
+                disconnectWsBtn.disabled = true;
+                palmVeinBtn.disabled = true;
+                updatePalmVeinBtn.disabled = true;
+                deletePalmVeinBtn.disabled = true;
+                comparePalmarBtn.disabled = true;
+                console.log('WebSocket connection closed', event);
+            };
+
+            ws.onerror = (error) => {
+                errorElement.textContent = 'WebSocket connection error: ' + error.message;
+                wsStatusElement.textContent = 'WebSocket connection error';
+                console.error('WebSocket Error:', error);
+            };
+        } catch (error) {
+            errorElement.textContent = 'Error connecting to WebSocket:' + error.message;
+            console.error('Error connecting to WebSocket:', error);
+        }
+    }
+
+    // 设置canvas尺寸与容器匹配
+    function setupCanvas() {
+        overlayCanvas.width = videoContainer.offsetWidth;
+        overlayCanvas.height = videoContainer.offsetHeight;
+        console.log('Canvas尺寸:', overlayCanvas.width, 'x', overlayCanvas.height);
+
+        // 如果之前有坐标，重新绘制
+        if (lastCoordinates) {
+            drawGreenBox(lastCoordinates);
+        }
+    }
+
+    // 绘制绿色框的函数 - 修复坐标转换
+    function drawGreenBox(coordinates) {
+        // 保存坐标供重新绘制使用
+        lastCoordinates = coordinates;
+
+        // 清除之前的绘制
+        ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        // 获取图片的实际显示尺寸（考虑object-fit: cover）
+        const imgRect = currentFrame.getBoundingClientRect();
+        const containerRect = videoContainer.getBoundingClientRect();
+
+        console.log('图片显示尺寸:', imgRect.width, 'x', imgRect.height);
+        console.log('容器尺寸:', containerRect.width, 'x', containerRect.height);
+        console.log('原始坐标:', coordinates);
+
+        // 由于使用object-fit: cover，需要计算缩放比例和偏移
+        const scaleX = imgRect.width / currentFrame.naturalWidth;
+        const scaleY = imgRect.height / currentFrame.naturalHeight;
+        const scale = Math.min(scaleX, scaleY); // cover使用较小的缩放比例
+
+        // 计算图片在容器中的偏移（居中显示）
+        const offsetX = (containerRect.width - currentFrame.naturalWidth * scale) / 2;
+        const offsetY = (containerRect.height - currentFrame.naturalHeight * scale) / 2;
+
+        console.log('缩放比例:', scale);
+        console.log('偏移:', offsetX, offsetY);
+
+        // 转换坐标到canvas坐标系
+        const canvasX = offsetX + coordinates.x * scale;
+        const canvasY = offsetY + coordinates.y * scale;
+        const canvasWidth = coordinates.width * scale;
+        const canvasHeight = coordinates.height * scale;
+
+        console.log('转换后坐标:', {x: canvasX, y: canvasY, width: canvasWidth, height: canvasHeight});
+
+        // 设置绘制样式
+        ctx.strokeStyle = '#00ff00'; // 绿色
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]); // 实线
+
+        // 绘制矩形框
+        ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+
+        console.log('绘制绿色框完成');
+    }
+
+    // 清除绘制的框
+    function clearGreenBox() {
+        ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        lastCoordinates = null;
+    }
+</script>
+</body>
+</html>
